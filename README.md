@@ -1,5 +1,5 @@
 # sbb_column_classifier
-This tool allows you to get the number of columns for a image document. 
+This tool allows you to get the number of columns for a image document. RGB scale is the desired input.
 ## Installation
 
       ./make.sh
