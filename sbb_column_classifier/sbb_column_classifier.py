@@ -333,19 +333,11 @@ class sbb_column_classifier:
             print('The document has {} column!'.format(number_of_columns) )
         else:
             print('The document has {} columns!'.format(number_of_columns) )
-        
-        
 
-    
-        
-
-
-        
 
 @click.command()
-@click.option('--image', '-i', help='image filename. RGB scale is desired input')
-@click.option('--model', '-m', help='directory of models (page extractor and classifer)')
-
+@click.option('--image', '-i', help='image filename. RGB scale is desired input', required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option('--model', '-m', help='directory of models (page extractor and classifer)', required=True, type=click.Path(exists=True, file_okay=False))
 def main(image, model):
     possibles = globals()  # XXX unused?
     possibles.update(locals())
@@ -355,4 +347,3 @@ def main(image, model):
 
 if __name__ == "__main__":
     main()
-  
