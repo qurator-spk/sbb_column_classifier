@@ -339,8 +339,6 @@ class sbb_column_classifier:
 @click.option('--image', '-i', help='input image filename (RGB)', required=True, type=click.Path(exists=True, dir_okay=False))
 @click.option('--model', '-m', help='directory of models (page extractor and classifer)', required=True, type=click.Path(exists=True, file_okay=False))
 def main(image, model):
-    possibles = globals()  # XXX unused?
-    possibles.update(locals())
     x = sbb_column_classifier(image, model)
     x.run()
 
