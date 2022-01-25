@@ -31,11 +31,7 @@ import imutils
 from pathlib import Path
 
 warnings.filterwarnings('ignore')
-#
-__doc__ = \
-    """
-    tool to extract table form data from alto xml data
-    """
+
 
 class sbb_column_classifier:
     def __init__(self, image_dir, dir_models):
