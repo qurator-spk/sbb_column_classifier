@@ -10,8 +10,9 @@ as 6 column documents.
 
 ## How to use 
     
-      sbb_column_classifier -i <image file name> -m <directory of models> 
-      
-      
+      sbb_column_classifier -i <image file name> -m <directory of models>
+
+sbb_column_classifier can also produce JSON output with the `--json` option.
+
 ## Model
 Models can be found here [qurator-data.de](https://qurator-data.de/eynollah/).

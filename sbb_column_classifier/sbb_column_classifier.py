@@ -29,12 +29,14 @@ import time
 from matplotlib import pyplot, transforms
 import imutils
 from pathlib import Path
+import json
+
 
 warnings.filterwarnings('ignore')
 
 
 class sbb_column_classifier:
-    def __init__(self, image_dir, dir_models):
+    def __init__(self, image_dir, dir_models, json):
         self.image_dir = image_dir  # XXX This does not seem to be a directory as the name suggests, but a file
         self.kernel = np.ones((5, 5), np.uint8)
 
@@ -43,6 +45,8 @@ class sbb_column_classifier:
         self.model_page_dir = dir_models + "/model_page_mixed_best.h5"
         #self.image_filename=Path(self.image_dir).name
         #print(self.image_filename,'self.image_filename_stem')
+
+        self.json = json
 
     def resize_image(self, img_in, input_height, input_width):
         return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
@@ -321,18 +325,26 @@ class sbb_column_classifier:
 
     def run(self):
         image_page,_=self.extract_page()
-        number_of_columns =self.extract_number_of_columns(image_page)
-        if number_of_columns==1:
-            print('The document has {} column!'.format(number_of_columns) )
+        number_of_columns = int(self.extract_number_of_columns(image_page))
+
+        if self.json:
+            print(json.dumps({
+                "image_file": self.image_dir,
+                "columns": number_of_columns
+            }, indent=4))
         else:
-            print('The document has {} columns!'.format(number_of_columns) )
+            if number_of_columns==1:
+                print('The document has {} column!'.format(number_of_columns) )
+            else:
+                print('The document has {} columns!'.format(number_of_columns) )
 
 
 @click.command()
 @click.option('--image', '-i', help='input image filename (RGB)', required=True, type=click.Path(exists=True, dir_okay=False))
 @click.option('--model', '-m', help='directory of models (page extractor and classifer)', required=True, type=click.Path(exists=True, file_okay=False))
-def main(image, model):
-    x = sbb_column_classifier(image, model)
+@click.option('--json',        help='Format output as JSON', is_flag=True, default=False)
+def main(image, model, json):
+    x = sbb_column_classifier(image, model, json)
     x.run()
 
 
