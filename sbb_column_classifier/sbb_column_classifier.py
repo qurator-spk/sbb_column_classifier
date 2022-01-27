@@ -12,12 +12,15 @@ import seaborn as sns
 from sys import getsizeof
 import random
 from tqdm import tqdm
-from keras.models import model_from_json
-from keras.models import load_model
+
+from contextlib import redirect_stderr
+with redirect_stderr(open(os.devnull, "w")):
+    from keras.models import model_from_json
+    from keras.models import load_model
+    from keras import backend as K
 
 from sklearn.cluster import KMeans
 import gc
-from keras import backend as K
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 from scipy.signal import find_peaks
