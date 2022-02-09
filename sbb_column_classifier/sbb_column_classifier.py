@@ -12,7 +12,6 @@ with redirect_stderr(open(os.devnull, "w")):
     from keras.models import load_model
     from keras.backend import set_session
 
-import gc
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 import warnings
@@ -235,9 +234,6 @@ class sbb_column_classifier:
             seg_color =np.repeat(seg[:, :, np.newaxis], 3, axis=2)
             prediction_true = self.resize_image(seg_color, img_h_page, img_w_page)
             prediction_true = prediction_true.astype(np.uint8)
-
-
-        gc.collect()
 
         return prediction_true
 
