@@ -313,10 +313,11 @@ class sbb_column_classifier:
                 "columns": number_of_columns
             }, indent=4))
         else:
-            if number_of_columns==1:
-                print('The document has {} column!'.format(number_of_columns))
-            else:
-                print('The document has {} columns!'.format(number_of_columns))
+            print('The document image {!r} has {} {}!'.format(
+                image_dir,
+                number_of_columns,
+                "column" if number_of_columns == 1 else "columns"
+            ))
         self.logger.debug("Run done.")
 
 
