@@ -343,12 +343,19 @@ class sbb_column_classifier:
 
 
 @click.command()
-@click.option('--image', '-i', help='input image filename (RGB)', required=True, type=click.Path(exists=True, dir_okay=False))
-@click.option('--model', '-m', help='directory of models (page extractor and classifer)', required=True, type=click.Path(exists=True, file_okay=False))
+@click.option('--model', '-m', help='Directory of models (page extractor and classifier)', required=True, type=click.Path(exists=True, file_okay=False))
 @click.option('--json',        help='Format output as JSON', is_flag=True, default=False)
-def main(image, model, json):
-    x = sbb_column_classifier(image, model, json)
-    x.run()
+@click.argument('images', required=True, type=click.Path(exists=True, dir_okay=False), nargs=-1)
+def main(model, json, images):
+    """
+    Determine the number of columns in the document image IMAGES.
+
+    Input document images should be in RGB.
+    """
+
+    for image in images:
+        x = sbb_column_classifier(image, model, json)
+        x.run()
 
 
 if __name__ == "__main__":
