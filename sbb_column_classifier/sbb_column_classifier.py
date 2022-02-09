@@ -4,82 +4,73 @@ __version__ = '1.0'
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import sys
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sys import getsizeof
-import random
-from tqdm import tqdm
 
 from contextlib import redirect_stderr
 with redirect_stderr(open(os.devnull, "w")):
-    from keras.models import model_from_json
     from keras.models import load_model
-    from keras import backend as K
+    from keras.backend import set_session
 
-from sklearn.cluster import KMeans
 import gc
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
-from scipy.signal import find_peaks
-from scipy.ndimage import gaussian_filter1d
-import xml.etree.ElementTree as ET
 import warnings
 import click
-import time
-import imutils
 import json
 import logging
-from matplotlib import pyplot, transforms
-from pathlib import Path
 
 
 warnings.filterwarnings('ignore')
 
 
 class sbb_column_classifier:
-    def __init__(self, image_dir, dir_models, json):
-        self.image_dir = image_dir  # XXX This does not seem to be a directory as the name suggests, but a file
-        self.kernel = np.ones((5, 5), np.uint8)
+    def __init__(self, dir_models, json):
 
-        self.image = cv2.imread(self.image_dir)
-        self.model_classifier_dir = dir_models + "/model_scale_classifier.h5"
-        self.model_page_dir = dir_models + "/model_page_mixed_best.h5"
-        #self.image_filename=Path(self.image_dir).name
-        #print(self.image_filename,'self.image_filename_stem')
-
-        self.json = json
-
+        # Setup logging
         logging.basicConfig(
-                level=logging.DEBUG,
-                format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+            level=logging.DEBUG,
+            format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
         )
         self.logger = logging.getLogger('sbb_column_classifier')
         self.logger.setLevel(logging.DEBUG)
+
+
+        self.kernel = np.ones((5, 5), np.uint8)
+
+
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        # XXX config is unused...
+        session = tf.InteractiveSession()
+        set_session(session)
+
+        self.model_classifier_file = os.path.join(dir_models, "model_scale_classifier.h5")
+        self.model_classifier = self.start_new_session_and_model(self.model_classifier_file)
+        self.model_page_file = os.path.join(dir_models, "model_page_mixed_best.h5")
+        self.model_page = self.start_new_session_and_model(self.model_page_file)
+
+        self.json = json
 
 
     def resize_image(self, img_in, input_height, input_width):
         return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
 
     def start_new_session_and_model(self, model_dir):
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        # XXX config is unused...
-
-        session = tf.InteractiveSession()
+        # TODO should be renamed
         self.logger.debug("Loading model {}...".format(os.path.basename(model_dir)))
         model = load_model(model_dir, compile=False)
         self.logger.debug("Loading model done.")
 
-        return model, session
+        return model
 
-    def do_prediction(self,patches,img,model,marginal_of_patch_percent=0.1):
+    def do_prediction(self,patches,img,marginal_of_patch_percent=0.1):
+        model = self.model_page
+
         img_height_model = model.layers[len(model.layers) - 1].output_shape[1]
         img_width_model = model.layers[len(model.layers) - 1].output_shape[2]
-        n_classes = model.layers[len(model.layers) - 1].output_shape[3]
+        #n_classes = model.layers[len(model.layers) - 1].output_shape[3]
 
         if patches:
             if img.shape[0]<img_height_model:
@@ -230,11 +221,6 @@ class sbb_column_classifier:
                         :] = seg_color
 
             prediction_true = prediction_true.astype(np.uint8)
-            del img
-            del mask_true
-            del seg_color
-            del seg
-            del img_patch
 
         if not patches:
             img_h_page=img.shape[0]
@@ -250,12 +236,7 @@ class sbb_column_classifier:
             prediction_true = self.resize_image(seg_color, img_h_page, img_w_page)
             prediction_true = prediction_true.astype(np.uint8)
 
-            del img
-            del seg_color
-            del label_p_pred
-            del seg
 
-        del model
         gc.collect()
 
         return prediction_true
@@ -265,31 +246,26 @@ class sbb_column_classifier:
         return image_box, [box[1], box[1] + box[3], box[0], box[0] + box[2]]
 
     def extract_number_of_columns(self, image_page):
-        patches=False
-        model_classifier, session_classifier = self.start_new_session_and_model(self.model_classifier_dir)
+        patches = False
 
         img_in = image_page / 255.0
         img_in = cv2.resize(img_in, (448, 448), interpolation=cv2.INTER_NEAREST)
         img_in = img_in.reshape(1, 448, 448, 3)
-        label_p_pred = model_classifier.predict(img_in)
+        label_p_pred = self.model_classifier.predict(img_in)
         num_col = np.argmax(label_p_pred[0]) + 1
-
-        session_classifier.close()
-        del model_classifier
-        del session_classifier
-        gc.collect()
 
         return num_col
 
-    def extract_page(self):
-        patches=False
-        model_page, session_page = self.start_new_session_and_model(self.model_page_dir)
-        ###img = self.otsu_copy(self.image)
-        for ii in range(1):
-            img = cv2.GaussianBlur(self.image, (5, 5), 0)
+    def extract_page(self, image_dir):
+        patches = False
 
+        image = cv2.imread(image_dir)
 
-        img_page_prediction=self.do_prediction(patches,img,model_page)
+        ###img = self.otsu_copy(image)
+        for ii in range(1):  # XXX ???
+            img = cv2.GaussianBlur(image, (5, 5), 0)
+
+        img_page_prediction = self.do_prediction(patches, img)
 
         imgray = cv2.cvtColor(img_page_prediction, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(imgray, 0, 255, 0)
@@ -307,20 +283,20 @@ class sbb_column_classifier:
         if x<=30:
             w=w+x
             x=0
-        if (self.image.shape[1]-(x+w) )<=30:
-            w=w+(self.image.shape[1]-(x+w) )
+        if (image.shape[1]-(x+w) )<=30:
+            w=w+(image.shape[1]-(x+w) )
 
         if y<=30:
             h=h+y
             y=0
-        if (self.image.shape[0]-(y+h) )<=30:
-            h=h+(self.image.shape[0]-(y+h) )
+        if (image.shape[0]-(y+h) )<=30:
+            h=h+(image.shape[0]-(y+h) )
 
 
 
         box = [x, y, w, h]
 
-        croped_page, page_coord = self.crop_image_inside_box(box, self.image)
+        croped_page, page_coord = self.crop_image_inside_box(box, image)
 
         self.cont_page=[]
         self.cont_page.append( np.array( [ [ page_coord[2] , page_coord[0] ] ,
@@ -328,32 +304,23 @@ class sbb_column_classifier:
                                                     [ page_coord[3] , page_coord[1] ] ,
                                                 [ page_coord[2] , page_coord[1] ]] ) )
 
-        session_page.close()
-        del model_page
-        del session_page
-        del contours
-        del thresh
-        del img
-        del imgray
-
-        gc.collect()
         return croped_page, page_coord
 
-    def run(self):
-        self.logger.debug("Running for {}...".format(self.image_dir))
-        image_page,_=self.extract_page()
+    def run(self, image_dir):
+        self.logger.debug("Running for {}...".format(image_dir))
+        image_page, _ = self.extract_page(image_dir)
         number_of_columns = int(self.extract_number_of_columns(image_page))
 
         if self.json:
             print(json.dumps({
-                "image_file": self.image_dir,
+                "image_file": image_dir,
                 "columns": number_of_columns
             }, indent=4))
         else:
             if number_of_columns==1:
-                print('The document has {} column!'.format(number_of_columns) )
+                print('The document has {} column!'.format(number_of_columns))
             else:
-                print('The document has {} columns!'.format(number_of_columns) )
+                print('The document has {} columns!'.format(number_of_columns))
         self.logger.debug("Run done.")
 
 
@@ -368,9 +335,9 @@ def main(model, json, images):
     Input document images should be in RGB.
     """
 
+    x = sbb_column_classifier(model, json)
     for image in images:
-        x = sbb_column_classifier(image, model, json)
-        x.run()
+        x.run(image)
 
 
 if __name__ == "__main__":
