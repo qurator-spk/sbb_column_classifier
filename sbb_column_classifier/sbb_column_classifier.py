@@ -29,10 +29,11 @@ import xml.etree.ElementTree as ET
 import warnings
 import click
 import time
-from matplotlib import pyplot, transforms
 import imutils
-from pathlib import Path
 import json
+import logging
+from matplotlib import pyplot, transforms
+from pathlib import Path
 
 
 warnings.filterwarnings('ignore')
@@ -51,15 +52,27 @@ class sbb_column_classifier:
 
         self.json = json
 
+        logging.basicConfig(
+                level=logging.DEBUG,
+                format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        self.logger = logging.getLogger('sbb_column_classifier')
+        self.logger.setLevel(logging.DEBUG)
+
+
     def resize_image(self, img_in, input_height, input_width):
         return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
 
     def start_new_session_and_model(self, model_dir):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
+        # XXX config is unused...
 
         session = tf.InteractiveSession()
+        self.logger.debug("Loading model {}...".format(os.path.basename(model_dir)))
         model = load_model(model_dir, compile=False)
+        self.logger.debug("Loading model done.")
 
         return model, session
 
@@ -327,6 +340,7 @@ class sbb_column_classifier:
         return croped_page, page_coord
 
     def run(self):
+        self.logger.debug("Running for {}...".format(self.image_dir))
         image_page,_=self.extract_page()
         number_of_columns = int(self.extract_number_of_columns(image_page))
 
@@ -340,6 +354,7 @@ class sbb_column_classifier:
                 print('The document has {} column!'.format(number_of_columns) )
             else:
                 print('The document has {} columns!'.format(number_of_columns) )
+        self.logger.debug("Run done.")
 
 
 @click.command()
