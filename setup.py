@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from io import open
-from setuptools import setup
 
+from setuptools import setup
 
 with open("requirements.txt") as fp:
     install_requires = fp.read()

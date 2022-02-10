@@ -2,13 +2,17 @@
 
 __version__ = "1.0"
 
+import json
+import logging
 import os
+import warnings
+from contextlib import redirect_stderr
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+import click
 import cv2
 import numpy as np
 
-from contextlib import redirect_stderr
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 with redirect_stderr(open(os.devnull, "w")):
     from keras.models import load_model
@@ -17,12 +21,6 @@ with redirect_stderr(open(os.devnull, "w")):
 import tensorflow as tf
 
 tf.get_logger().setLevel("ERROR")
-import warnings
-import click
-import json
-import logging
-
-
 warnings.filterwarnings("ignore")
 
 
