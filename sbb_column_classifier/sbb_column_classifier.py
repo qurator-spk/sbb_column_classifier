@@ -329,10 +329,19 @@ def main(model, json_out, images):
 
     Input document images should be in RGB.
     """
+    try:
+        with open(json_out, "r") as f:
+            results = json.load(f)
+    except FileNotFoundError:
+        results = []
+    image_files_done = {e["image_file"] for e in results}
 
-    x = sbb_column_classifier(model, json_out)
-    for image in images:
-        x.run(image)
+    cl = sbb_column_classifier(model, json_out)
+    for image_file in images:
+        if image_file not in image_files_done:
+            cl.run(image_file)
+        else:
+            cl.logger.debug("Skipping {!r}, it is already done.".format(image_file))
 
 
 if __name__ == "__main__":
