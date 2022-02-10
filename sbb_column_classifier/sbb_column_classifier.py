@@ -236,10 +236,10 @@ class sbb_column_classifier:
 
         return num_col
 
-    def extract_page(self, image_dir):
+    def extract_page(self, image_file):
         patches = False
 
-        image = cv2.imread(image_dir)
+        image = cv2.imread(image_file)
 
         ###img = self.otsu_copy(image)
         for ii in range(1):  # XXX ???
@@ -291,9 +291,9 @@ class sbb_column_classifier:
 
         return croped_page, page_coord
 
-    def run(self, image_dir):
-        self.logger.debug("Running for {}...".format(image_dir))
-        image_page, _ = self.extract_page(image_dir)
+    def run(self, image_file):
+        self.logger.debug("Running for {}...".format(image_file))
+        image_page, _ = self.extract_page(image_file)
         number_of_columns = int(self.extract_number_of_columns(image_page))
 
         if self.json_out:
@@ -303,12 +303,12 @@ class sbb_column_classifier:
             except FileNotFoundError:
                 results = []
 
-            results.append({"image_file": image_dir, "columns": number_of_columns})
+            results.append({"image_file": image_file, "columns": number_of_columns})
 
             with open(self.json_out, "w") as f:
                 json.dump(results, f, indent=4)
         else:
-            print("The document image {!r} has {} {}!".format(image_dir, number_of_columns, "column" if number_of_columns == 1 else "columns"))
+            print("The document image {!r} has {} {}!".format(image_file, number_of_columns, "column" if number_of_columns == 1 else "columns"))
         self.logger.debug("Run done.")
 
 
