@@ -226,7 +226,8 @@ class sbb_column_classifier:
         return image_box, [box[1], box[1] + box[3], box[0], box[0] + box[2]]
 
     def extract_number_of_columns(self, image_page):
-        patches = False
+        # XXX patches is not used here (Mike)
+        # patches = False
 
         img_in = image_page / 255.0
         img_in = cv2.resize(img_in, (448, 448), interpolation=cv2.INTER_NEAREST)
