@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore")
 
 
 class sbb_column_classifier:
-    def __init__(self, dir_models, json):
+    def __init__(self, dir_models, json_out):
 
         # Setup logging
         logging.basicConfig(
@@ -49,7 +49,7 @@ class sbb_column_classifier:
         self.model_page_file = os.path.join(dir_models, "model_page_mixed_best.h5")
         self.model_page = self.start_new_session_and_model(self.model_page_file)
 
-        self.json = json
+        self.json_out = json_out
 
     def resize_image(self, img_in, input_height, input_width):
         return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
@@ -296,8 +296,17 @@ class sbb_column_classifier:
         image_page, _ = self.extract_page(image_dir)
         number_of_columns = int(self.extract_number_of_columns(image_page))
 
-        if self.json:
-            print(json.dumps({"image_file": image_dir, "columns": number_of_columns}, indent=4))
+        if self.json_out:
+            try:
+                with open(self.json_out, "r") as f:
+                    results = json.load(f)
+            except FileNotFoundError:
+                results = []
+
+            results.append({"image_file": image_dir, "columns": number_of_columns})
+
+            with open(self.json_out, "w") as f:
+                json.dump(results, f, indent=4)
         else:
             print("The document image {!r} has {} {}!".format(image_dir, number_of_columns, "column" if number_of_columns == 1 else "columns"))
         self.logger.debug("Run done.")
@@ -311,16 +320,16 @@ class sbb_column_classifier:
     required=True,
     type=click.Path(exists=True, file_okay=False),
 )
-@click.option("--json", help="Format output as JSON", is_flag=True, default=False)
+@click.option("--json-out", help="Write output as JSON", type=click.Path(exists=False, dir_okay=False))
 @click.argument("images", required=True, type=click.Path(exists=True, dir_okay=False), nargs=-1)
-def main(model, json, images):
+def main(model, json_out, images):
     """
     Determine the number of columns in the document image IMAGES.
 
     Input document images should be in RGB.
     """
 
-    x = sbb_column_classifier(model, json)
+    x = sbb_column_classifier(model, json_out)
     for image in images:
         x.run(image)
 
