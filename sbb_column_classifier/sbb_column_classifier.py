@@ -347,7 +347,8 @@ def main(model, json_out, images):
             cl.logger.debug("Skipping {!r}, it is already done.".format(image_file))
 
     def is_image(fn):
-        return mimetypes.guess_type(fn)[0].startswith("image/")
+        guessed_mimetype = mimetypes.guess_type(fn)[0]
+        return guessed_mimetype is not None and guessed_mimetype.startswith("image/")
 
     def process_walk(i, explicitly_given=False):
         if os.path.isdir(i):
