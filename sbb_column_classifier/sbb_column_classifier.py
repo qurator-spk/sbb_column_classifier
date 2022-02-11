@@ -4,6 +4,7 @@ __version__ = "1.0"
 
 import json
 import logging
+import mimetypes
 import os
 import warnings
 from contextlib import redirect_stderr
@@ -322,12 +323,13 @@ class sbb_column_classifier:
     type=click.Path(exists=True, file_okay=False),
 )
 @click.option("--json-out", help="Write output as JSON", type=click.Path(exists=False, dir_okay=False))
-@click.argument("images", required=True, type=click.Path(exists=True, dir_okay=False), nargs=-1)
+@click.argument("images", required=True, type=click.Path(exists=True, dir_okay=True), nargs=-1)
 def main(model, json_out, images):
     """
     Determine the number of columns in the document image IMAGES.
 
-    Input document images should be in RGB.
+    Input document images should be in RGB. If a directory is given as IMAGES,
+    we will process any image in the directory and its subdirectories.
     """
     try:
         with open(json_out, "r") as f:
@@ -337,11 +339,29 @@ def main(model, json_out, images):
     image_files_done = {e["image_file"] for e in results}
 
     cl = sbb_column_classifier(model, json_out)
-    for image_file in images:
+
+    def process(image_file):
         if image_file not in image_files_done:
             cl.run(image_file)
         else:
             cl.logger.debug("Skipping {!r}, it is already done.".format(image_file))
+
+    def is_image(fn):
+        return mimetypes.guess_type(fn)[0].startswith("image/")
+
+    def process_walk(i):
+        if os.path.isdir(i):
+            root = i
+            # Using os.scandir() here for better performance over os.walk()
+            with os.scandir(root) as it:
+                for entry in it:
+                    process_walk(os.path.join(root, entry.name))
+        elif os.path.isfile(i) and is_image(i):
+            process(i)
+
+    for i in images:
+        process_walk(i)
+
 
 
 if __name__ == "__main__":
