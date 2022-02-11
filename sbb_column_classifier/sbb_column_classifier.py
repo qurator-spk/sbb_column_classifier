@@ -6,6 +6,7 @@ import json
 import logging
 import mimetypes
 import os
+import traceback
 import warnings
 from contextlib import redirect_stderr
 
@@ -342,7 +343,10 @@ def main(model, json_out, images):
 
     def process(image_file):
         if image_file not in image_files_done:
-            cl.run(image_file)
+            try:
+                cl.run(image_file)
+            except Exception:
+                print(traceback.format_exc())
         else:
             cl.logger.debug("Skipping {!r}, it is already done.".format(image_file))
 
