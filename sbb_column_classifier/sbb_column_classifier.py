@@ -349,18 +349,19 @@ def main(model, json_out, images):
     def is_image(fn):
         return mimetypes.guess_type(fn)[0].startswith("image/")
 
-    def process_walk(i):
+    def process_walk(i, explicitly_given=False):
         if os.path.isdir(i):
             root = i
             # Using os.scandir() here for better performance over os.walk()
             with os.scandir(root) as it:
                 for entry in it:
                     process_walk(os.path.join(root, entry.name))
-        elif os.path.isfile(i) and is_image(i):
-            process(i)
+        elif os.path.isfile(i):
+            if explicitly_given or is_image(i):
+                process(i)
 
     for i in images:
-        process_walk(i)
+        process_walk(i, explicitly_given=True)
 
 
 
