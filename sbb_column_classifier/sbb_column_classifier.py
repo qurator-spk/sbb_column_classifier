@@ -2,7 +2,6 @@
 
 __version__ = "1.0"
 
-import json
 import logging
 import mimetypes
 import os
@@ -13,6 +12,7 @@ from contextlib import redirect_stderr
 import click
 import cv2
 import numpy as np
+from peewee import *
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -26,8 +26,19 @@ tf.get_logger().setLevel("ERROR")
 warnings.filterwarnings("ignore")
 
 
+database = SqliteDatabase(None)  # Defer initialization
+
+
+class Result(Model):
+    image_file = CharField(primary_key=True)
+    columns = IntegerField()
+
+    class Meta:
+        database = database
+
+
 class sbb_column_classifier:
-    def __init__(self, dir_models, json_out):
+    def __init__(self, dir_models, db_out):
 
         # Setup logging
         logging.basicConfig(
@@ -51,7 +62,11 @@ class sbb_column_classifier:
         self.model_page_file = os.path.join(dir_models, "model_page_mixed_best.h5")
         self.model_page = self.start_new_session_and_model(self.model_page_file)
 
-        self.json_out = json_out
+        self.db_out = db_out
+        if self.db_out:
+            database.init(self.db_out)
+            database.create_tables([Result])
+
 
     def resize_image(self, img_in, input_height, input_width):
         return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
@@ -299,19 +314,10 @@ class sbb_column_classifier:
         image_page, _ = self.extract_page(image_file)
         number_of_columns = int(self.extract_number_of_columns(image_page))
 
-        if self.json_out:
-            try:
-                with open(self.json_out, "r") as f:
-                    results = json.load(f)
-            except FileNotFoundError:
-                results = []
-
-            results.append({"image_file": image_file, "columns": number_of_columns})
-
-            with open(self.json_out, "w") as f:
-                json.dump(results, f, indent=4)
-        else:
-            print("The document image {!r} has {} {}!".format(image_file, number_of_columns, "column" if number_of_columns == 1 else "columns"))
+        if self.db_out:
+            r = Result.create(image_file=image_file, columns=number_of_columns)
+            r.save()
+        print("The document image {!r} has {} {}!".format(image_file, number_of_columns, "column" if number_of_columns == 1 else "columns"))
         self.logger.debug("Run done.")
 
 
@@ -323,26 +329,21 @@ class sbb_column_classifier:
     required=True,
     type=click.Path(exists=True, file_okay=False),
 )
-@click.option("--json-out", help="Write output as JSON", type=click.Path(exists=False, dir_okay=False))
+@click.option("--db-out", help="Write output as SQLite3 db", type=click.Path(exists=False, dir_okay=False))
 @click.argument("images", required=True, type=click.Path(exists=True, dir_okay=True), nargs=-1)
-def main(model, json_out, images):
+def main(model, db_out, images):
     """
     Determine the number of columns in the document image IMAGES.
 
     Input document images should be in RGB. If a directory is given as IMAGES,
     we will process any image in the directory and its subdirectories.
     """
-    try:
-        with open(json_out, "r") as f:
-            results = json.load(f)
-    except FileNotFoundError:
-        results = []
-    image_files_done = {e["image_file"] for e in results}
+    image_files_done = []  # TODO
 
-    cl = sbb_column_classifier(model, json_out)
+    cl = sbb_column_classifier(model, db_out)
 
     def process(image_file):
-        if image_file not in image_files_done:
+        if not db_out or not Result.get_or_none(Result.image_file == image_file):
             try:
                 cl.run(image_file)
             except Exception:

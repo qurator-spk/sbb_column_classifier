@@ -8,3 +8,4 @@ tensorflow-gpu >= 1.15, < 1.16
 scikit-learn
 click
 imutils >= 0.5.3
+peewee

@@ -12,8 +12,8 @@ as 6 column documents.
 
       sbb_column_classifier -i <image file name> -m <directory of models>
 
-sbb_column_classifier can also produce JSON output with the `--json-out
-example.json` option.
+sbb_column_classifier can also produce a SQLite3 database file with results,
+using the `--db-out results.sqlite3` option.
 
 ## Model
 Models can be found here [qurator-data.de](https://qurator-data.de/eynollah/).
