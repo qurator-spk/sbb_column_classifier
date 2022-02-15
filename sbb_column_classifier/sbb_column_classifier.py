@@ -316,7 +316,6 @@ class sbb_column_classifier:
 
         if self.db_out:
             r = Result.create(image_file=image_file, columns=number_of_columns)
-            r.save()
         print("The document image {!r} has {} {}!".format(image_file, number_of_columns, "column" if number_of_columns == 1 else "columns"))
         self.logger.debug("Run done.")
 
