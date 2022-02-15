@@ -48,6 +48,7 @@ class sbb_column_classifier:
         )
         self.logger = logging.getLogger("sbb_column_classifier")
         self.logger.setLevel(logging.DEBUG)
+        logging.getLogger("peewee").setLevel(logging.INFO)
 
         self.kernel = np.ones((5, 5), np.uint8)
 
