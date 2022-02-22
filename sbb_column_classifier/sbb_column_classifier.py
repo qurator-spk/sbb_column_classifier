@@ -271,25 +271,28 @@ class sbb_column_classifier:
         thresh = cv2.dilate(thresh, self.kernel, iterations=3)
         contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        cnt_size = np.array([cv2.contourArea(contours[j]) for j in range(len(contours))])
 
-        cnt = contours[np.argmax(cnt_size)]
+        if len(contours) > 0:
+            cnt_size = np.array([cv2.contourArea(contours[j]) for j in range(len(contours))])
+            cnt = contours[np.argmax(cnt_size)]
 
-        x, y, w, h = cv2.boundingRect(cnt)
+            x, y, w, h = cv2.boundingRect(cnt)
 
-        if x <= 30:
-            w = w + x
-            x = 0
-        if (image.shape[1] - (x + w)) <= 30:
-            w = w + (image.shape[1] - (x + w))
+            if x <= 30:
+                w = w + x
+                x = 0
+            if (image.shape[1] - (x + w)) <= 30:
+                w = w + (image.shape[1] - (x + w))
 
-        if y <= 30:
-            h = h + y
-            y = 0
-        if (image.shape[0] - (y + h)) <= 30:
-            h = h + (image.shape[0] - (y + h))
+            if y <= 30:
+                h = h + y
+                y = 0
+            if (image.shape[0] - (y + h)) <= 30:
+                h = h + (image.shape[0] - (y + h))
 
-        box = [x, y, w, h]
+            box = [x, y, w, h]
+        else:
+            box = [0, 0, img.shape[1], img.shape[0]]
 
         croped_page, page_coord = self.crop_image_inside_box(box, image)
 
