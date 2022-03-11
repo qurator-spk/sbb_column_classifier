@@ -260,7 +260,8 @@ class sbb_column_classifier:
         image = cv2.imread(image_file)
 
         ###img = self.otsu_copy(image)
-        for ii in range(1):  # XXX ???
+        BLUR_TIMES = 1
+        for _ in range(BLUR_TIMES):
             img = cv2.GaussianBlur(image, (5, 5), 0)
 
         img_page_prediction = self.do_prediction(patches, img)
