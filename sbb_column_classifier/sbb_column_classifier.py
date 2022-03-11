@@ -67,8 +67,12 @@ class sbb_column_classifier:
             database.init(self.db_out)
             database.create_tables([Result])
 
-
     def resize_image(self, img_in, input_height, input_width):
+        """
+        Resize image.
+
+        Wrap cv2.resize so that the order of the height and width parameters match .shape's order.
+        """
         return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
 
     def our_load_model(self, model_file):
