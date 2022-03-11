@@ -54,8 +54,7 @@ class sbb_column_classifier:
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
-        # XXX config is unused...
-        session = tf.InteractiveSession()
+        session = tf.InteractiveSession(config=config)
         set_session(session)
 
         self.model_classifier_file = os.path.join(dir_models, "model_scale_classifier.h5")
