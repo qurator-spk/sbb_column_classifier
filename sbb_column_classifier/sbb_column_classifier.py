@@ -242,10 +242,8 @@ class sbb_column_classifier:
         image_box = img_org_copy[box[1] : box[1] + box[3], box[0] : box[0] + box[2]]
         return image_box, [box[1], box[1] + box[3], box[0], box[0] + box[2]]
 
-    def extract_number_of_columns(self, image_page):
-        # XXX patches is not used here (Mike)
-        # patches = False
-
+    def extract_number_of_columns(self, image_page: cv2.Mat) -> int:
+        """Determine the number of columns of the given page"""
         img_in = image_page / 255.0
         img_in = cv2.resize(img_in, (448, 448), interpolation=cv2.INTER_NEAREST)
         img_in = img_in.reshape(1, 448, 448, 3)
