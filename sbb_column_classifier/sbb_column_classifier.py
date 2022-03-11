@@ -255,7 +255,8 @@ class sbb_column_classifier:
         return num_col
 
     def extract_page(self, image_file):
-        # XXX Code shared with eynollah
+        """Determine page border and extract the actual page."""
+        # XXX shared code with eynollah
         patches = False
 
         image = cv2.imread(image_file)
