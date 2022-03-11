@@ -58,9 +58,9 @@ class sbb_column_classifier:
         set_session(session)
 
         self.model_classifier_file = os.path.join(dir_models, "model_scale_classifier.h5")
-        self.model_classifier = self.start_new_session_and_model(self.model_classifier_file)
+        self.model_classifier = self.our_load_model(self.model_classifier_file)
         self.model_page_file = os.path.join(dir_models, "model_page_mixed_best.h5")
-        self.model_page = self.start_new_session_and_model(self.model_page_file)
+        self.model_page = self.our_load_model(self.model_page_file)
 
         self.db_out = db_out
         if self.db_out:
@@ -71,10 +71,9 @@ class sbb_column_classifier:
     def resize_image(self, img_in, input_height, input_width):
         return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
 
-    def start_new_session_and_model(self, model_dir):
-        # TODO should be renamed
-        self.logger.debug("Loading model {}...".format(os.path.basename(model_dir)))
-        model = load_model(model_dir, compile=False)
+    def our_load_model(self, model_file):
+        self.logger.debug("Loading model {}...".format(os.path.basename(model_file)))
+        model = load_model(model_file, compile=False)
         self.logger.debug("Loading model done.")
 
         return model
