@@ -266,8 +266,8 @@ class sbb_column_classifier:
 
         img_page_prediction = self.do_prediction(patches, img)
 
-        imgray = cv2.cvtColor(img_page_prediction, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(imgray, 0, 255, 0)
+        img_gray = cv2.cvtColor(img_page_prediction, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(img_gray, 0, 255, 0)
 
         thresh = cv2.dilate(thresh, self.kernel, iterations=3)
         contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
