@@ -299,7 +299,8 @@ class sbb_column_classifier:
         else:
             box = [0, 0, img.shape[1], img.shape[0]]
 
-        croped_page, page_coord = self.crop_image_inside_box(box, image)
+        # Crop page from image
+        cropped_page, page_coord = self.crop_image_inside_box(box, image)
 
         # XXX Instance attribute cont_page defined outside __init__
         # XXX It's also unused → Commenting it out (Mike)
