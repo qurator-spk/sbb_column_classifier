@@ -340,8 +340,6 @@ def main(model, db_out, images):
     Input document images should be in RGB. If a directory is given as IMAGES,
     we will process any image in the directory and its subdirectories.
     """
-    image_files_done = []  # TODO
-
     cl = sbb_column_classifier(model, db_out)
 
     def process(image_file):
