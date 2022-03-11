@@ -79,6 +79,7 @@ class sbb_column_classifier:
         return model
 
     def do_prediction(self, patches, img, marginal_of_patch_percent=0.1):
+        # XXX shared code with eynollah
         model = self.model_page
 
         img_height_model = model.layers[len(model.layers) - 1].output_shape[1]
@@ -254,6 +255,7 @@ class sbb_column_classifier:
         return num_col
 
     def extract_page(self, image_file):
+        # XXX Code shared with eynollah
         patches = False
 
         image = cv2.imread(image_file)
