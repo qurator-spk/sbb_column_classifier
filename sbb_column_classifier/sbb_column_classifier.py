@@ -302,21 +302,7 @@ class sbb_column_classifier:
         # Crop page from image
         cropped_page, page_coord = self.crop_image_inside_box(box, image)
 
-        # XXX Instance attribute cont_page defined outside __init__
-        # XXX It's also unused → Commenting it out (Mike)
-        # self.cont_page = []
-        # self.cont_page.append(
-        #     np.array(
-        #         [
-        #             [page_coord[2], page_coord[0]],
-        #             [page_coord[3], page_coord[0]],
-        #             [page_coord[3], page_coord[1]],
-        #             [page_coord[2], page_coord[1]],
-        #         ]
-        #     )
-        # )
-
-        return croped_page, page_coord
+        return cropped_page, page_coord
 
     def run(self, image_file):
         self.logger.debug("Running for {}...".format(image_file))
