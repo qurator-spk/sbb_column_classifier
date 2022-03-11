@@ -222,7 +222,7 @@ class sbb_column_classifier:
 
             prediction_true = prediction_true.astype(np.uint8)
 
-        if not patches:
+        else:  # not patches
             img_h_page = img.shape[0]
             img_w_page = img.shape[1]
             img = img / float(255.0)
