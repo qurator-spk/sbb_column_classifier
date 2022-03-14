@@ -82,163 +82,24 @@ class sbb_column_classifier:
 
         return model
 
-    def do_prediction(self, patches, img, marginal_of_patch_percent=0.1):
-        # XXX shared code with eynollah
+    def do_prediction(self, img):
         model = self.model_page
 
         img_height_model = model.layers[len(model.layers) - 1].output_shape[1]
         img_width_model = model.layers[len(model.layers) - 1].output_shape[2]
         # n_classes = model.layers[len(model.layers) - 1].output_shape[3]
 
-        if patches:
-            if img.shape[0] < img_height_model:
-                img = self.resize_image(img, img_height_model, img.shape[1])
+        img_h_page = img.shape[0]
+        img_w_page = img.shape[1]
+        img = img / float(255.0)
+        img = self.resize_image(img, img_height_model, img_width_model)
 
-            if img.shape[1] < img_width_model:
-                img = self.resize_image(img, img.shape[0], img_width_model)
+        label_p_pred = model.predict(img.reshape(1, img.shape[0], img.shape[1], img.shape[2]))
 
-            # print(img_height_model,img_width_model)
-            # margin = int(0.2 * img_width_model)
-            margin = int(marginal_of_patch_percent * img_height_model)
-
-            width_mid = img_width_model - 2 * margin
-            height_mid = img_height_model - 2 * margin
-
-            img = img / float(255.0)
-            # print(sys.getsizeof(img))
-            # print(np.max(img))
-
-            img = img.astype(np.float16)
-
-            # print(sys.getsizeof(img))
-
-            img_h = img.shape[0]
-            img_w = img.shape[1]
-
-            prediction_true = np.zeros((img_h, img_w, 3))
-            mask_true = np.zeros((img_h, img_w))
-            nxf = img_w / float(width_mid)
-            nyf = img_h / float(height_mid)
-
-            if nxf > int(nxf):
-                nxf = int(nxf) + 1
-            else:
-                nxf = int(nxf)
-
-            if nyf > int(nyf):
-                nyf = int(nyf) + 1
-            else:
-                nyf = int(nyf)
-
-            for i in range(nxf):
-                for j in range(nyf):
-
-                    if i == 0:
-                        index_x_d = i * width_mid
-                        index_x_u = index_x_d + img_width_model
-                    elif i > 0:
-                        index_x_d = i * width_mid
-                        index_x_u = index_x_d + img_width_model
-
-                    if j == 0:
-                        index_y_d = j * height_mid
-                        index_y_u = index_y_d + img_height_model
-                    elif j > 0:
-                        index_y_d = j * height_mid
-                        index_y_u = index_y_d + img_height_model
-
-                    if index_x_u > img_w:
-                        index_x_u = img_w
-                        index_x_d = img_w - img_width_model
-                    if index_y_u > img_h:
-                        index_y_u = img_h
-                        index_y_d = img_h - img_height_model
-
-                    img_patch = img[index_y_d:index_y_u, index_x_d:index_x_u, :]
-
-                    label_p_pred = model.predict(img_patch.reshape(1, img_patch.shape[0], img_patch.shape[1], img_patch.shape[2]))
-
-                    seg = np.argmax(label_p_pred, axis=3)[0]
-
-                    seg_color = np.repeat(seg[:, :, np.newaxis], 3, axis=2)
-
-                    if i == 0 and j == 0:
-                        seg_color = seg_color[0 : seg_color.shape[0] - margin, 0 : seg_color.shape[1] - margin, :]
-                        seg = seg[0 : seg.shape[0] - margin, 0 : seg.shape[1] - margin]
-
-                        mask_true[index_y_d + 0 : index_y_u - margin, index_x_d + 0 : index_x_u - margin] = seg
-                        prediction_true[index_y_d + 0 : index_y_u - margin, index_x_d + 0 : index_x_u - margin, :] = seg_color
-
-                    elif i == nxf - 1 and j == nyf - 1:
-                        seg_color = seg_color[margin : seg_color.shape[0] - 0, margin : seg_color.shape[1] - 0, :]
-                        seg = seg[margin : seg.shape[0] - 0, margin : seg.shape[1] - 0]
-
-                        mask_true[index_y_d + margin : index_y_u - 0, index_x_d + margin : index_x_u - 0] = seg
-                        prediction_true[index_y_d + margin : index_y_u - 0, index_x_d + margin : index_x_u - 0, :] = seg_color
-
-                    elif i == 0 and j == nyf - 1:
-                        seg_color = seg_color[margin : seg_color.shape[0] - 0, 0 : seg_color.shape[1] - margin, :]
-                        seg = seg[margin : seg.shape[0] - 0, 0 : seg.shape[1] - margin]
-
-                        mask_true[index_y_d + margin : index_y_u - 0, index_x_d + 0 : index_x_u - margin] = seg
-                        prediction_true[index_y_d + margin : index_y_u - 0, index_x_d + 0 : index_x_u - margin, :] = seg_color
-
-                    elif i == nxf - 1 and j == 0:
-                        seg_color = seg_color[0 : seg_color.shape[0] - margin, margin : seg_color.shape[1] - 0, :]
-                        seg = seg[0 : seg.shape[0] - margin, margin : seg.shape[1] - 0]
-
-                        mask_true[index_y_d + 0 : index_y_u - margin, index_x_d + margin : index_x_u - 0] = seg
-                        prediction_true[index_y_d + 0 : index_y_u - margin, index_x_d + margin : index_x_u - 0, :] = seg_color
-
-                    elif i == 0 and j != 0 and j != nyf - 1:
-                        seg_color = seg_color[margin : seg_color.shape[0] - margin, 0 : seg_color.shape[1] - margin, :]
-                        seg = seg[margin : seg.shape[0] - margin, 0 : seg.shape[1] - margin]
-
-                        mask_true[index_y_d + margin : index_y_u - margin, index_x_d + 0 : index_x_u - margin] = seg
-                        prediction_true[index_y_d + margin : index_y_u - margin, index_x_d + 0 : index_x_u - margin, :] = seg_color
-
-                    elif i == nxf - 1 and j != 0 and j != nyf - 1:
-                        seg_color = seg_color[margin : seg_color.shape[0] - margin, margin : seg_color.shape[1] - 0, :]
-                        seg = seg[margin : seg.shape[0] - margin, margin : seg.shape[1] - 0]
-
-                        mask_true[index_y_d + margin : index_y_u - margin, index_x_d + margin : index_x_u - 0] = seg
-                        prediction_true[index_y_d + margin : index_y_u - margin, index_x_d + margin : index_x_u - 0, :] = seg_color
-
-                    elif i != 0 and i != nxf - 1 and j == 0:
-                        seg_color = seg_color[0 : seg_color.shape[0] - margin, margin : seg_color.shape[1] - margin, :]
-                        seg = seg[0 : seg.shape[0] - margin, margin : seg.shape[1] - margin]
-
-                        mask_true[index_y_d + 0 : index_y_u - margin, index_x_d + margin : index_x_u - margin] = seg
-                        prediction_true[index_y_d + 0 : index_y_u - margin, index_x_d + margin : index_x_u - margin, :] = seg_color
-
-                    elif i != 0 and i != nxf - 1 and j == nyf - 1:
-                        seg_color = seg_color[margin : seg_color.shape[0] - 0, margin : seg_color.shape[1] - margin, :]
-                        seg = seg[margin : seg.shape[0] - 0, margin : seg.shape[1] - margin]
-
-                        mask_true[index_y_d + margin : index_y_u - 0, index_x_d + margin : index_x_u - margin] = seg
-                        prediction_true[index_y_d + margin : index_y_u - 0, index_x_d + margin : index_x_u - margin, :] = seg_color
-
-                    else:
-                        seg_color = seg_color[margin : seg_color.shape[0] - margin, margin : seg_color.shape[1] - margin, :]
-                        seg = seg[margin : seg.shape[0] - margin, margin : seg.shape[1] - margin]
-
-                        mask_true[index_y_d + margin : index_y_u - margin, index_x_d + margin : index_x_u - margin] = seg
-                        prediction_true[index_y_d + margin : index_y_u - margin, index_x_d + margin : index_x_u - margin, :] = seg_color
-
-            prediction_true = prediction_true.astype(np.uint8)
-
-        else:  # not patches
-            img_h_page = img.shape[0]
-            img_w_page = img.shape[1]
-            img = img / float(255.0)
-            img = self.resize_image(img, img_height_model, img_width_model)
-
-            label_p_pred = model.predict(img.reshape(1, img.shape[0], img.shape[1], img.shape[2]))
-
-            seg = np.argmax(label_p_pred, axis=3)[0]
-            seg_color = np.repeat(seg[:, :, np.newaxis], 3, axis=2)
-            prediction_true = self.resize_image(seg_color, img_h_page, img_w_page)
-            prediction_true = prediction_true.astype(np.uint8)
+        seg = np.argmax(label_p_pred, axis=3)[0]
+        seg_color = np.repeat(seg[:, :, np.newaxis], 3, axis=2)
+        prediction_true = self.resize_image(seg_color, img_h_page, img_w_page)
+        prediction_true = prediction_true.astype(np.uint8)
 
         return prediction_true
 
@@ -258,8 +119,6 @@ class sbb_column_classifier:
 
     def extract_page(self, image_file):
         """Determine page border and extract the actual page."""
-        # XXX shared code with eynollah
-        patches = False
 
         image = cv2.imread(image_file)
 
@@ -268,7 +127,7 @@ class sbb_column_classifier:
         for _ in range(BLUR_TIMES):
             img = cv2.GaussianBlur(image, (5, 5), 0)
 
-        img_page_prediction = self.do_prediction(patches, img)
+        img_page_prediction = self.do_prediction(img)
 
         img_gray = cv2.cvtColor(img_page_prediction, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(img_gray, 0, 255, 0)
