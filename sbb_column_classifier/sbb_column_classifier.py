@@ -107,16 +107,6 @@ class sbb_column_classifier:
         image_box = img_org_copy[box[1] : box[1] + box[3], box[0] : box[0] + box[2]]
         return image_box, [box[1], box[1] + box[3], box[0], box[0] + box[2]]
 
-    def extract_number_of_columns(self, image_page: cv2.Mat) -> int:
-        """Determine the number of columns of the given page"""
-        img_in = image_page / 255.0
-        img_in = cv2.resize(img_in, (448, 448), interpolation=cv2.INTER_NEAREST)
-        img_in = img_in.reshape(1, 448, 448, 3)
-        label_p_pred = self.model_classifier.predict(img_in)
-        num_col = np.argmax(label_p_pred[0]) + 1
-
-        return num_col
-
     def extract_page(self, image_file):
         """Determine page border and extract the actual page."""
 
@@ -162,6 +152,16 @@ class sbb_column_classifier:
         cropped_page, page_coord = self.crop_image_inside_box(box, image)
 
         return cropped_page, page_coord
+
+    def extract_number_of_columns(self, image_page: cv2.Mat) -> int:
+        """Determine the number of columns of the given page"""
+        img_in = image_page / 255.0
+        img_in = cv2.resize(img_in, (448, 448), interpolation=cv2.INTER_NEAREST)
+        img_in = img_in.reshape(1, 448, 448, 3)
+        label_p_pred = self.model_classifier.predict(img_in)
+        num_col = np.argmax(label_p_pred[0]) + 1
+
+        return num_col
 
     def run(self, image_file):
         self.logger.debug("Running for {}...".format(image_file))
