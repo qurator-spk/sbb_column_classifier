@@ -46,6 +46,8 @@ def _imread_and_prepare(image_file: str, model_input_shape):
     Must be defined at the top-level so it can be pickled for multiprocessing.
     """
     img_in = cv2.imread(image_file)
+    if not img_in:
+        return None, None, image_file
 
     # img = self.otsu_copy(image)
     BLUR_TIMES = 1
@@ -186,6 +188,10 @@ class sbb_column_classifier:
         with Pool(self.N_WORKERS) as pool:
             prepared_images = peekable(pool.imap(_imread_and_prepare_HACK, image_files))
             for x, img_in, image_file in prepared_images:
+                if not x:
+                    self.logger.error(f"Error reading {image_file}")
+                    continue
+
                 batch.append([x, img_in, image_file])
 
                 # We have either a full batch or the last batch (= peekable iterator is exhausted):
