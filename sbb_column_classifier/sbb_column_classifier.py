@@ -274,7 +274,8 @@ def main(model, db_out, images):
     for number_of_columns, image_file in cl.number_of_columns(process_walk_outer(images)):
         print("{!r},{}".format(image_file, number_of_columns))
         if db_out:
-            r = Result.create(image_file=image_file, columns=number_of_columns)
+            with database.atomic() as txn:
+                r = Result.create(image_file=image_file, columns=number_of_columns)
 
     # TODO
     # try:
