@@ -39,14 +39,15 @@ class Result(Model):
     class Meta:
         database = database
 
-def _imread_and_prepare(image_file: str, model_input_shape) -> cv2.Mat:
+
+def _imread_and_prepare(image_file: str, model_input_shape):
     """Read a single image from a file and prepare it for page prediction
-    
+
     Must be defined at the top-level so it can be pickled for multiprocessing.
     """
     img_in = cv2.imread(image_file)
 
-    #img = self.otsu_copy(image)
+    # img = self.otsu_copy(image)
     BLUR_TIMES = 1
     for _ in range(BLUR_TIMES):
         img = cv2.GaussianBlur(img_in, (5, 5), 0)
@@ -59,10 +60,11 @@ def _imread_and_prepare(image_file: str, model_input_shape) -> cv2.Mat:
 
     assert img.shape == dim
 
-    return img, img_in
+    return img, img_in, image_file
+
 
 # XXX HACK HACK HACK
-def _imread_and_prepare_HACK(image_file: str) -> cv2.Mat:
+def _imread_and_prepare_HACK(image_file: str):
     model_input_shape = (None, 448, 448, 3)  # XXX hardcoded shape
     return _imread_and_prepare(image_file, model_input_shape)
 
@@ -77,8 +79,9 @@ def _resize_image(img_in, input_height, input_width):
     """
     return cv2.resize(img_in, (input_width, input_height), interpolation=cv2.INTER_NEAREST)
 
+
 class sbb_column_classifier:
-    def __init__(self, dir_models, db_out):
+    def __init__(self, dir_models):
 
         # Setup logging
         logging.basicConfig(
@@ -102,11 +105,6 @@ class sbb_column_classifier:
         self.model_classifier_file = os.path.join(dir_models, "model_scale_classifier.h5")
         self.model_classifier = self.our_load_model(self.model_classifier_file)
 
-        self.db_out = db_out
-        if self.db_out:
-            database.init(self.db_out)
-            database.create_tables([Result])
-
     def our_load_model(self, model_file):
         self.logger.debug("Loading model {}...".format(os.path.basename(model_file)))
 
@@ -117,8 +115,6 @@ class sbb_column_classifier:
         self.logger.debug("Loading model done.")
 
         return model
-
-
 
     @staticmethod
     def _crop_image_inside_box(box, img_org_copy):
@@ -183,58 +179,42 @@ class sbb_column_classifier:
 
         return cropped_page
 
-
-
-    
     def crop_pages_batchwise(self, image_files):
         """Crop pages, batch for batch"""
         batch = []
-        #X = np.empty((self.batch_size, *dim))
+        # X = np.empty((self.batch_size, *dim))
         with Pool(self.N_WORKERS) as pool:
             prepared_images = peekable(pool.imap(_imread_and_prepare_HACK, image_files))
-            for x, img_in in prepared_images:
-                batch.append([x, img_in])
+            for x, img_in, image_file in prepared_images:
+                batch.append([x, img_in, image_file])
 
                 # We have either a full batch or the last batch (= peekable iterator is exhausted):
                 if len(batch) >= self.BATCH_SIZE or not prepared_images:
-                    X = np.stack((x for x, _ in batch), axis=0)
+                    X = np.stack((x for x, _, _ in batch), axis=0)
                     pred_batch = self.model_page.predict(X)
 
                     # TODO This doesn't run parallelized
                     cropped_pages = []
-                    for label_p_pred, img_in in zip(pred_batch, (img_in for _, img_in in batch)):
+                    for label_p_pred, (img_in, image_file2) in zip(pred_batch, ((img_in, image_file2) for _, img_in, image_file2 in batch)):
                         cropped_page = self._crop_page_from_pred(label_p_pred, img_in)
-                        cropped_pages.append(cropped_page)
+                        cropped_pages.append((cropped_page, image_file2))
                     batch = []
                     yield cropped_pages
 
     def number_of_columns(self, image_files):
         for cropped_pages_batch in self.crop_pages_batchwise(image_files):
             batch = []
-            for img in cropped_pages_batch:
+            for cropped_page, image_file in cropped_pages_batch:
                 # TODO ... just to resize it down again
-                img = img / 255.0
-                img = cv2.resize(img, (448, 448), interpolation=cv2.INTER_NEAREST)  # XXX hardcoded shape
-                batch.append(img)
+                cropped_page = cropped_page / 255.0
+                cropped_page = cv2.resize(cropped_page, (448, 448), interpolation=cv2.INTER_NEAREST)  # XXX hardcoded shape
+                batch.append((cropped_page, image_file))
 
-            X = np.stack(batch, axis=0)
+            X = np.stack((x for x, _ in batch), axis=0)
             label_p_pred = self.model_classifier.predict(X)
             num_col_batch = np.argmax(label_p_pred, axis=1) + 1
-            yield from num_col_batch
-
-
-    # XXX
-    def run(self, image_file):
-        self.logger.debug("Running for {}...".format(image_file))
-
-        image_page, _ = self.extract_page(image_file)
-        number_of_columns = int(self.extract_number_of_columns(image_page))
-
-        if self.db_out:
-            r = Result.create(image_file=image_file, columns=number_of_columns)
-        print("The document image {!r} has {} {}!".format(image_file, number_of_columns, "column" if number_of_columns == 1 else "columns"))
-
-        self.logger.debug("Run done.")
+            self.logger.debug(f"Batch of {len(batch)} done.")
+            yield from zip(num_col_batch, (image_file for _, image_file in batch))
 
 
 @click.command()
@@ -254,21 +234,14 @@ def main(model, db_out, images):
     Input document images should be in RGB. If a directory is given as IMAGES,
     we will process any image in the directory and its subdirectories.
     """
-    cl = sbb_column_classifier(model, db_out)
-
-    # TODO
-    def process(image_file):
-        if not db_out or not Result.get_or_none(Result.image_file == image_file):
-            try:
-                cl.run(image_file)
-            except Exception:
-                print(traceback.format_exc())
-        else:
-            cl.logger.debug("Skipping {!r}, it is already done.".format(image_file))
+    cl = sbb_column_classifier(model)
 
     def is_image(fn):
         guessed_mimetype = mimetypes.guess_type(fn)[0]
         return guessed_mimetype is not None and guessed_mimetype.startswith("image/")
+
+    def already_done(fn):
+        return db_out and Result.get_or_none(Result.image_file == fn)
 
     def process_walk(i, explicitly_given=False):
         if os.path.isdir(i):
@@ -279,15 +252,29 @@ def main(model, db_out, images):
                     yield from process_walk(os.path.join(root, entry.name))
         elif os.path.isfile(i):
             if explicitly_given or is_image(i):
-                print(i)
-                yield i
+                if already_done(i):
+                    cl.logger.debug("Skipping {!r}, it is already done.".format(i))
+                else:
+                    yield i
 
     def process_walk_outer(images):
         for i in images:
             yield from process_walk(i, explicitly_given=True)
 
-    for n in cl.number_of_columns(process_walk_outer(images)):
-        print(n)
+    if db_out:
+        database.init(db_out)
+        database.create_tables([Result])
+
+    for number_of_columns, image_file in cl.number_of_columns(process_walk_outer(images)):
+        print("{!r},{}".format(image_file, number_of_columns))
+        if db_out:
+            r = Result.create(image_file=image_file, columns=number_of_columns)
+
+    # TODO
+    # try:
+    #    cl.run(image_file)
+    # except Exception:
+    #    print(traceback.format_exc())
 
 
 if __name__ == "__main__":
