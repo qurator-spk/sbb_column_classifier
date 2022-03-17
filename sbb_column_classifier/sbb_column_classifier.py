@@ -46,7 +46,7 @@ def _imread_and_prepare(image_file: str, model_input_shape):
     Must be defined at the top-level so it can be pickled for multiprocessing.
     """
     img_in = cv2.imread(image_file)
-    if not img_in:
+    if not np.any(img_in):
         return None, None, image_file
 
     # img = self.otsu_copy(image)
@@ -188,7 +188,7 @@ class sbb_column_classifier:
         with Pool(self.N_WORKERS) as pool:
             prepared_images = peekable(pool.imap(_imread_and_prepare_HACK, image_files))
             for x, img_in, image_file in prepared_images:
-                if not x:
+                if not np.any(x):
                     self.logger.error(f"Error reading {image_file}")
                     continue
 
