@@ -8,6 +8,7 @@ from multiprocessing import Pool
 import os
 import traceback
 import warnings
+import time
 from contextlib import redirect_stderr
 
 import click
@@ -106,6 +107,8 @@ class sbb_column_classifier:
         self.model_page = self.our_load_model(self.model_page_file)
         self.model_classifier_file = os.path.join(dir_models, "model_scale_classifier.h5")
         self.model_classifier = self.our_load_model(self.model_classifier_file)
+
+        self.time_last_batch = time.time()
 
     def our_load_model(self, model_file):
         self.logger.debug("Loading model {}...".format(os.path.basename(model_file)))
@@ -219,7 +222,11 @@ class sbb_column_classifier:
             X = np.stack((x for x, _ in batch), axis=0)
             label_p_pred = self.model_classifier.predict(X)
             num_col_batch = np.argmax(label_p_pred, axis=1) + 1
-            self.logger.debug(f"Batch of {len(batch)} done.")
+
+            duration_this_batch = time.time() - self.time_last_batch
+            self.time_last_batch = time.time()
+
+            self.logger.debug(f"Batch of {len(batch)} images done ({duration_this_batch/len(batch):.3f}s/image).")
             yield from zip(num_col_batch, (image_file for _, image_file in batch))
 
 
