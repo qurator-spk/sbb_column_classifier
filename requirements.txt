@@ -9,3 +9,4 @@ scikit-learn
 click
 imutils >= 0.5.3
 peewee
+more_itertools
