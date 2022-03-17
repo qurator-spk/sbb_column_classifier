@@ -57,7 +57,6 @@ def _imread_and_prepare(image_file: str, model_input_shape) -> cv2.Mat:
     img = img / float(255.0)
     img = _resize_image(img, dim[0], dim[1])
 
-    print(img.shape, dim)
     assert img.shape == dim
 
     return img, img_in
@@ -162,7 +161,7 @@ class sbb_column_classifier:
 
         return box
 
-    N_WORKERS = 4  # XXX We actually use 2*N_WORKERS
+    N_WORKERS = 4
     BATCH_SIZE = 32
 
     def _crop_page_from_pred(self, pred, img_in):
@@ -199,7 +198,6 @@ class sbb_column_classifier:
                 # We have either a full batch or the last batch (= peekable iterator is exhausted):
                 if len(batch) >= self.BATCH_SIZE or not prepared_images:
                     X = np.stack((x for x, _ in batch), axis=0)
-                    print(X.shape)
                     pred_batch = self.model_page.predict(X)
 
                     # TODO This doesn't run parallelized
@@ -220,11 +218,9 @@ class sbb_column_classifier:
                 batch.append(img)
 
             X = np.stack(batch, axis=0)
-            print(X.shape)
             label_p_pred = self.model_classifier.predict(X)
-            print(label_p_pred.shape)
             num_col_batch = np.argmax(label_p_pred, axis=1) + 1
-            print(num_col_batch)
+            yield from num_col_batch
 
 
     # XXX
@@ -260,6 +256,7 @@ def main(model, db_out, images):
     """
     cl = sbb_column_classifier(model, db_out)
 
+    # TODO
     def process(image_file):
         if not db_out or not Result.get_or_none(Result.image_file == image_file):
             try:
@@ -289,7 +286,8 @@ def main(model, db_out, images):
         for i in images:
             yield from process_walk(i, explicitly_given=True)
 
-    cl.number_of_columns(list(process_walk_outer(images)))  # XXX
+    for n in cl.number_of_columns(process_walk_outer(images)):
+        print(n)
 
 
 if __name__ == "__main__":
