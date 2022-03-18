@@ -308,12 +308,10 @@ def main(model, db_out, images):
             r = Result.create(image_file=image_file, columns=number_of_columns)
             if i % 4*32 == 0:
                 database.commit()
-    if db_out:
-        database.commit()
-
-
         global semaphore
         semaphore.release()
+    if db_out:
+        database.commit()
 
     # TODO
     # try:
