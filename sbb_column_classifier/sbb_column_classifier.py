@@ -9,7 +9,7 @@ import os
 import traceback
 import warnings
 import time
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, contextmanager
 
 import click
 import cv2
@@ -39,6 +39,19 @@ class Result(Model):
 
     class Meta:
         database = database
+
+
+@contextmanager
+def timing(description: str, logger=None) -> None:
+    start = time.time()
+    yield
+    elapsed_time = time.time() - start
+
+    msg = f"{description}: {elapsed_time:.3f}s"
+    if logger:
+        logger.debug(msg)
+    else:
+        print(msg)
 
 
 def _imread_and_prepare(image_file: str, model_input_shape):
@@ -203,11 +216,13 @@ class sbb_column_classifier:
                     pred_batch = self.model_page.predict(X)
 
                     # TODO This doesn't run parallelized
-                    cropped_pages = []
-                    for label_p_pred, (img_in, image_file2) in zip(pred_batch, ((img_in, image_file2) for _, img_in, image_file2 in batch)):
-                        cropped_page = self._crop_page_from_pred(label_p_pred, img_in)
-                        cropped_pages.append((cropped_page, image_file2))
-                    batch = []
+                    with timing("Cropping images", logger=self.logger):
+                        cropped_pages = []
+                        for label_p_pred, (img_in, image_file2) in zip(pred_batch, ((img_in, image_file2) for _, img_in, image_file2 in batch)):
+                            cropped_page = self._crop_page_from_pred(label_p_pred, img_in)
+                            cropped_pages.append((cropped_page, image_file2))
+                        batch = []
+
                     yield cropped_pages
 
     def number_of_columns(self, image_files):
@@ -227,7 +242,7 @@ class sbb_column_classifier:
             duration_this_batch = time.time() - self.time_last_batch
             self.time_last_batch = time.time()
 
-            self.logger.debug(f"Batch of {len(batch)} images done ({duration_this_batch/len(batch):.3f}s/image).")
+            self.logger.debug(f"Batch of {len(batch)} images done ({duration_this_batch:.3f}s, {duration_this_batch/len(batch):.3f}s/image).")
             yield from zip(num_col_batch, (image_file for _, image_file in batch))
 
 
