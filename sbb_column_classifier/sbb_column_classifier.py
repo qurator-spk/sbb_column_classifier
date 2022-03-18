@@ -210,6 +210,7 @@ class sbb_column_classifier:
     def number_of_columns(self, image_files):
         for cropped_pages_batch in self.crop_pages_batchwise(image_files):
             batch = []
+            # TODO This doesn't run parallelized
             for cropped_page, image_file in cropped_pages_batch:
                 # TODO ... just to resize it down again
                 cropped_page = cropped_page / 255.0
