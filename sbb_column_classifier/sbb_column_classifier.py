@@ -8,6 +8,7 @@ from multiprocessing import Pool
 import os
 import traceback
 import warnings
+import time
 from contextlib import redirect_stderr
 
 import click
@@ -46,7 +47,7 @@ def _imread_and_prepare(image_file: str, model_input_shape):
     Must be defined at the top-level so it can be pickled for multiprocessing.
     """
     img_in = cv2.imread(image_file)
-    if not img_in:
+    if not np.any(img_in):
         return None, None, image_file
 
     # img = self.otsu_copy(image)
@@ -107,6 +108,8 @@ class sbb_column_classifier:
         self.model_classifier_file = os.path.join(dir_models, "model_scale_classifier.h5")
         self.model_classifier = self.our_load_model(self.model_classifier_file)
 
+        self.time_last_batch = time.time()
+
     def our_load_model(self, model_file):
         self.logger.debug("Loading model {}...".format(os.path.basename(model_file)))
 
@@ -159,7 +162,7 @@ class sbb_column_classifier:
 
         return box
 
-    N_WORKERS = 4
+    N_WORKERS = 6
     BATCH_SIZE = 32
 
     def _crop_page_from_pred(self, pred, img_in):
@@ -188,7 +191,7 @@ class sbb_column_classifier:
         with Pool(self.N_WORKERS) as pool:
             prepared_images = peekable(pool.imap(_imread_and_prepare_HACK, image_files))
             for x, img_in, image_file in prepared_images:
-                if not x:
+                if not np.any(x):
                     self.logger.error(f"Error reading {image_file}")
                     continue
 
@@ -220,7 +223,11 @@ class sbb_column_classifier:
             X = np.stack((x for x, _ in batch), axis=0)
             label_p_pred = self.model_classifier.predict(X)
             num_col_batch = np.argmax(label_p_pred, axis=1) + 1
-            self.logger.debug(f"Batch of {len(batch)} done.")
+
+            duration_this_batch = time.time() - self.time_last_batch
+            self.time_last_batch = time.time()
+
+            self.logger.debug(f"Batch of {len(batch)} images done ({duration_this_batch/len(batch):.3f}s/image).")
             yield from zip(num_col_batch, (image_file for _, image_file in batch))
 
 
@@ -275,7 +282,8 @@ def main(model, db_out, images):
     for number_of_columns, image_file in cl.number_of_columns(process_walk_outer(images)):
         print("{!r},{}".format(image_file, number_of_columns))
         if db_out:
-            r = Result.create(image_file=image_file, columns=number_of_columns)
+            with database.atomic() as txn:
+                r = Result.create(image_file=image_file, columns=number_of_columns)
 
     # TODO
     # try:
