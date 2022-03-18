@@ -30,7 +30,7 @@ tf.get_logger().setLevel("ERROR")
 warnings.filterwarnings("ignore")
 
 
-database = SqliteDatabase(None)  # Defer initialization
+database = SqliteDatabase(None, autocommit=False)  # Defer initialization
 
 
 class Result(Model):
@@ -279,11 +279,16 @@ def main(model, db_out, images):
         database.init(db_out)
         database.create_tables([Result])
 
-    for number_of_columns, image_file in cl.number_of_columns(process_walk_outer(images)):
+
+    for i, (number_of_columns, image_file) in enumerate(cl.number_of_columns(process_walk_outer(images))):
         print("{!r},{}".format(image_file, number_of_columns))
         if db_out:
-            with database.atomic() as txn:
-                r = Result.create(image_file=image_file, columns=number_of_columns)
+            r = Result.create(image_file=image_file, columns=number_of_columns)
+            if i % 4*32 == 0:
+                database.commit()
+    if db_out:
+        database.commit()
+
 
     # TODO
     # try:
