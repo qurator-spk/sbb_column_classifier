@@ -64,26 +64,25 @@ def _imread_and_prepare(image_file: str, model_input_shape):
 
     # XXX Butt-ugly to use a global here
     global semaphore
-    semaphore.acquire()
+    with semaphore:
+        img_in = cv2.imread(image_file)
+        if not np.any(img_in):
+            return None, None, image_file
 
-    img_in = cv2.imread(image_file)
-    if not np.any(img_in):
-        return None, None, image_file
+        # img = self.otsu_copy(image)
+        BLUR_TIMES = 1
+        for _ in range(BLUR_TIMES):
+            img = cv2.GaussianBlur(img_in, (5, 5), 0)
 
-    # img = self.otsu_copy(image)
-    BLUR_TIMES = 1
-    for _ in range(BLUR_TIMES):
-        img = cv2.GaussianBlur(img_in, (5, 5), 0)
+        # n_classes = model.layers[len(model.layers) - 1].output_shape[3]
 
-    # n_classes = model.layers[len(model.layers) - 1].output_shape[3]
+        dim = model_input_shape[1:]
+        img = img / float(255.0)
+        img = _resize_image(img, dim[0], dim[1])
 
-    dim = model_input_shape[1:]
-    img = img / float(255.0)
-    img = _resize_image(img, dim[0], dim[1])
+        assert img.shape == dim
 
-    assert img.shape == dim
-
-    return img, img_in, image_file
+        return img, img_in, image_file
 
 
 # XXX HACK HACK HACK
