@@ -4,7 +4,7 @@ __version__ = "1.0"
 
 import logging
 import mimetypes
-from multiprocessing import Pool
+from multiprocessing import Pool, Semaphore
 import os
 import traceback
 import warnings
@@ -40,12 +40,19 @@ class Result(Model):
     class Meta:
         database = database
 
+semaphore = Semaphore(64)
+
 
 def _imread_and_prepare(image_file: str, model_input_shape):
     """Read a single image from a file and prepare it for page prediction
 
     Must be defined at the top-level so it can be pickled for multiprocessing.
     """
+
+    # XXX Butt-ugly to use a global here
+    global semaphore
+    semaphore.acquire()
+
     img_in = cv2.imread(image_file)
     if not np.any(img_in):
         return None, None, image_file
@@ -284,6 +291,9 @@ def main(model, db_out, images):
         if db_out:
             with database.atomic() as txn:
                 r = Result.create(image_file=image_file, columns=number_of_columns)
+
+        global semaphore
+        semaphore.release()
 
     # TODO
     # try:
