@@ -10,7 +10,7 @@ as 6 column documents.
 
 ## How to use
 
-      sbb_column_classifier -i <image file name> -m <directory of models>
+      sbb_column_classifier --model <directory of models> example.tif example-dir/
 
 sbb_column_classifier can also produce a SQLite3 database file with results,
 using the `--db-out results.sqlite3` option.
