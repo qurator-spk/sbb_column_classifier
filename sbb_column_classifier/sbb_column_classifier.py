@@ -40,7 +40,7 @@ class Result(Model):
     class Meta:
         database = database
 
-semaphore = Semaphore(64)
+semaphore = Semaphore(32)
 
 
 @contextmanager
