@@ -9,9 +9,8 @@ import os
 import traceback
 import warnings
 import time
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, contextmanager
 from multiprocessing import Pool, Semaphore
-
 
 import click
 import cv2
@@ -32,7 +31,7 @@ tf.get_logger().setLevel("ERROR")
 warnings.filterwarnings("ignore")
 
 
-database = SqliteDatabase(None)  # Defer initialization
+database = SqliteDatabase(None, autocommit=False)  # Defer initialization
 
 
 class Result(Model):
@@ -45,6 +44,19 @@ class Result(Model):
 semaphore = Semaphore(64)
 
 
+@contextmanager
+def timing(description: str, logger=None) -> None:
+    start = time.time()
+    yield
+    elapsed_time = time.time() - start
+
+    msg = f"{description}: {elapsed_time:.3f}s"
+    if logger:
+        logger.debug(msg)
+    else:
+        print(msg)
+
+
 def _imread_and_prepare(image_file: str, model_input_shape):
     """Read a single image from a file and prepare it for page prediction
 
@@ -53,26 +65,25 @@ def _imread_and_prepare(image_file: str, model_input_shape):
 
     # XXX Butt-ugly to use a global here
     global semaphore
-    semaphore.acquire()
+    with semaphore:
+        img_in = cv2.imread(image_file)
+        if not np.any(img_in):
+            return None, None, image_file
 
-    img_in = cv2.imread(image_file)
-    if not np.any(img_in):
-        return None, None, image_file
+        # img = self.otsu_copy(image)
+        BLUR_TIMES = 1
+        for _ in range(BLUR_TIMES):
+            img = cv2.GaussianBlur(img_in, (5, 5), 0)
 
-    # img = self.otsu_copy(image)
-    BLUR_TIMES = 1
-    for _ in range(BLUR_TIMES):
-        img = cv2.GaussianBlur(img_in, (5, 5), 0)
+        # n_classes = model.layers[len(model.layers) - 1].output_shape[3]
 
-    # n_classes = model.layers[len(model.layers) - 1].output_shape[3]
+        dim = model_input_shape[1:]
+        img = img / float(255.0)
+        img = _resize_image(img, dim[0], dim[1])
 
-    dim = model_input_shape[1:]
-    img = img / float(255.0)
-    img = _resize_image(img, dim[0], dim[1])
+        assert img.shape == dim
 
-    assert img.shape == dim
-
-    return img, img_in, image_file
+        return img, img_in, image_file
 
 
 # XXX HACK HACK HACK
@@ -213,11 +224,13 @@ class sbb_column_classifier:
                     pred_batch = self.model_page.predict_on_batch(X)
 
                     # TODO This doesn't run parallelized
-                    cropped_pages = []
-                    for label_p_pred, (img_in, image_file2) in zip(pred_batch, ((img_in, image_file2) for _, img_in, image_file2 in batch)):
-                        cropped_page = self._crop_page_from_pred(label_p_pred, img_in)
-                        cropped_pages.append((cropped_page, image_file2))
-                    batch = []
+                    with timing("Cropping images", logger=self.logger):
+                        cropped_pages = []
+                        for label_p_pred, (img_in, image_file2) in zip(pred_batch, ((img_in, image_file2) for _, img_in, image_file2 in batch)):
+                            cropped_page = self._crop_page_from_pred(label_p_pred, img_in)
+                            cropped_pages.append((cropped_page, image_file2))
+                        batch = []
+
                     yield cropped_pages
 
     def number_of_columns(self, image_files):
@@ -237,7 +250,7 @@ class sbb_column_classifier:
             duration_this_batch = time.time() - self.time_last_batch
             self.time_last_batch = time.time()
 
-            self.logger.debug(f"Batch of {len(batch)} images done ({duration_this_batch/len(batch):.3f}s/image).")
+            self.logger.debug(f"Batch of {len(batch)} images done ({duration_this_batch:.3f}s, {duration_this_batch/len(batch):.3f}s/image).")
             yield from zip(num_col_batch, (image_file for _, image_file in batch))
 
 
@@ -293,14 +306,22 @@ def main(model, db_out, images):
         database.init(db_out)
         database.create_tables([Result])
 
-    for number_of_columns, image_file in cl.number_of_columns(process_walk_outer(images)):
-        print("{!r},{}".format(image_file, number_of_columns))
+    if db_out:
+        database.begin()
+
+    for i, (number_of_columns, image_file) in enumerate(cl.number_of_columns(process_walk_outer(images))):
         if db_out:
-            with database.atomic() as txn:
-                r = Result.create(image_file=image_file, columns=number_of_columns)
+            r = Result.create(image_file=image_file, columns=number_of_columns)
+            if i % 4*32 == 0:
+                database.commit()
+                database.begin()
+        else:
+            print("{!r},{}".format(image_file, number_of_columns))
 
         global semaphore
         semaphore.release()
+    if db_out:
+        database.commit()
 
     # TODO
     # try:
