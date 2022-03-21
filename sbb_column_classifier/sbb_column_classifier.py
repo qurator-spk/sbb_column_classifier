@@ -4,12 +4,14 @@ __version__ = "1.0"
 
 import logging
 import mimetypes
-from multiprocessing import Pool, Semaphore
+import multiprocessing as mp
 import os
 import traceback
 import warnings
 import time
 from contextlib import redirect_stderr
+from multiprocessing import Pool, Semaphore
+
 
 import click
 import cv2
@@ -169,7 +171,7 @@ class sbb_column_classifier:
 
         return box
 
-    N_WORKERS = 6
+    N_WORKERS = min(6, mp.cpu_count())
     BATCH_SIZE = 32
 
     def _crop_page_from_pred(self, pred, img_in):
@@ -255,6 +257,10 @@ def main(model, db_out, images):
     Input document images should be in RGB. If a directory is given as IMAGES,
     we will process any image in the directory and its subdirectories.
     """
+
+    #if mp.get_start_method(allow_none=True) != 'spawn':
+    #     mp.set_start_method('spawn', force=True)
+
     cl = sbb_column_classifier(model)
 
     def is_image(fn):
