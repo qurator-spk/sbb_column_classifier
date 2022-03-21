@@ -297,7 +297,7 @@ def main(model, db_out, images):
             yield from process_walk(i, explicitly_given=True)
 
     if db_out:
-        database.init(db_out)
+        database.init(db_out, pragmas={'journal_mode': 'wal'})
         database.create_tables([Result])
 
     if db_out:
