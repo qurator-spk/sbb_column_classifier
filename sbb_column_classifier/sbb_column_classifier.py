@@ -4,12 +4,13 @@ __version__ = "1.0"
 
 import logging
 import mimetypes
-from multiprocessing import Pool, Semaphore
+import multiprocessing as mp
 import os
 import traceback
 import warnings
 import time
 from contextlib import redirect_stderr, contextmanager
+from multiprocessing import Pool, Semaphore
 
 import click
 import cv2
@@ -181,7 +182,7 @@ class sbb_column_classifier:
 
         return box
 
-    N_WORKERS = 6
+    N_WORKERS = min(6, mp.cpu_count())
     BATCH_SIZE = 32
 
     def _crop_page_from_pred(self, pred, img_in):
@@ -219,7 +220,8 @@ class sbb_column_classifier:
                 # We have either a full batch or the last batch (= peekable iterator is exhausted):
                 if len(batch) >= self.BATCH_SIZE or not prepared_images:
                     X = np.stack((x for x, _, _ in batch), axis=0)
-                    pred_batch = self.model_page.predict(X)
+                    X = tf.convert_to_tensor(X, dtype=tf.float64)
+                    pred_batch = self.model_page.predict_on_batch(X)
 
                     # TODO This doesn't run parallelized
                     with timing("Cropping images", logger=self.logger):
@@ -242,7 +244,7 @@ class sbb_column_classifier:
                 batch.append((cropped_page, image_file))
 
             X = np.stack((x for x, _ in batch), axis=0)
-            label_p_pred = self.model_classifier.predict(X)
+            label_p_pred = self.model_classifier.predict_on_batch(X)
             num_col_batch = np.argmax(label_p_pred, axis=1) + 1
 
             duration_this_batch = time.time() - self.time_last_batch
@@ -269,6 +271,10 @@ def main(model, db_out, images):
     Input document images should be in RGB. If a directory is given as IMAGES,
     we will process any image in the directory and its subdirectories.
     """
+
+    #if mp.get_start_method(allow_none=True) != 'spawn':
+    #     mp.set_start_method('spawn', force=True)
+
     cl = sbb_column_classifier(model)
 
     def is_image(fn):
