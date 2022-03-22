@@ -118,9 +118,9 @@ class sbb_column_classifier:
 
         self.kernel = np.ones((5, 5), np.uint8)
 
-        config = tf.ConfigProto()
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
-        session = tf.InteractiveSession(config=config)
+        session = tf.compat.v1.Session(config=config)
         set_session(session)
 
         self.model_page_file = os.path.join(dir_models, "model_page_mixed_best.h5")
