@@ -221,7 +221,7 @@ class sbb_column_classifier:
                 if len(batch) >= self.BATCH_SIZE or not prepared_images:
                     X = np.stack((x for x, _, _ in batch), axis=0)
                     X = tf.convert_to_tensor(X, dtype=tf.float64)
-                    pred_batch = self.model_page.predict_on_batch(X)
+                    pred_batch = self.model_page.predict(X)
 
                     # TODO This doesn't run parallelized
                     with timing("Cropping images", logger=self.logger):
@@ -244,7 +244,7 @@ class sbb_column_classifier:
                 batch.append((cropped_page, image_file))
 
             X = np.stack((x for x, _ in batch), axis=0)
-            label_p_pred = self.model_classifier.predict_on_batch(X)
+            label_p_pred = self.model_classifier.predict(X)
             num_col_batch = np.argmax(label_p_pred, axis=1) + 1
 
             duration_this_batch = time.time() - self.time_last_batch
