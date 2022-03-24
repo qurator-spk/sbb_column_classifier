@@ -28,6 +28,7 @@ with redirect_stderr(open(os.devnull, "w")):
 import tensorflow as tf
 
 tf.get_logger().setLevel("ERROR")
+tf.config.run_functions_eagerly(False)
 warnings.filterwarnings("ignore")
 
 
@@ -128,6 +129,8 @@ class sbb_column_classifier:
         self.model_classifier_file = os.path.join(dir_models, "model_scale_classifier.h5")
         self.model_classifier = self.our_load_model(self.model_classifier_file)
 
+        session.graph.finalize()
+
         self.time_last_batch = time.time()
 
     def our_load_model(self, model_file):
@@ -140,6 +143,15 @@ class sbb_column_classifier:
         self.logger.debug("Loading model done.")
 
         return model
+
+    @tf.function
+    def model_page_predict(self, X):
+        return self.model_page(X, training=False)
+    @tf.function
+    def model_classifier_predict(self, X):
+        return self.model_classifier(X, training=False)
+
+
 
     @staticmethod
     def _crop_image_inside_box(box, img_org_copy):
@@ -221,7 +233,7 @@ class sbb_column_classifier:
                 if len(batch) >= self.BATCH_SIZE or not prepared_images:
                     X = np.stack((x for x, _, _ in batch), axis=0)
                     X = tf.convert_to_tensor(X, dtype=tf.float64)
-                    pred_batch = self.model_page.predict(X)
+                    pred_batch = self.model_page_predict(X)
 
                     # TODO This doesn't run parallelized
                     with timing("Cropping images", logger=self.logger):
@@ -244,7 +256,8 @@ class sbb_column_classifier:
                 batch.append((cropped_page, image_file))
 
             X = np.stack((x for x, _ in batch), axis=0)
-            label_p_pred = self.model_classifier.predict(X)
+            X = tf.convert_to_tensor(X, dtype=tf.float64)
+            label_p_pred = self.model_classifier_predict(X)
             num_col_batch = np.argmax(label_p_pred, axis=1) + 1
 
             duration_this_batch = time.time() - self.time_last_batch
