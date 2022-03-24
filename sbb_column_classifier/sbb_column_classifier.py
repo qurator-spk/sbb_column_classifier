@@ -194,8 +194,8 @@ class sbb_column_classifier:
 
         return box
 
-    N_WORKERS = min(6, mp.cpu_count())
-    BATCH_SIZE = 32
+    N_WORKERS = min(4, mp.cpu_count())
+    BATCH_SIZE = 16
 
     def _crop_page_from_pred(self, pred, img_in):
         seg = np.argmax(pred, axis=2)
