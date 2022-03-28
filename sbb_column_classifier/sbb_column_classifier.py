@@ -194,7 +194,7 @@ class sbb_column_classifier:
 
         return box
 
-    N_WORKERS = min(4, mp.cpu_count())
+    N_WORKERS = min(3, mp.cpu_count())
     BATCH_SIZE = 16
 
     def _crop_page_from_pred(self, pred, img_in):
