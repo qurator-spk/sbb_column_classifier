@@ -18,16 +18,16 @@ import numpy as np
 from peewee import *
 from more_itertools import peekable
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-with redirect_stderr(open(os.devnull, "w")):
-    from keras.models import load_model
-    from keras.backend import set_session
-    import keras
+#with redirect_stderr(open(os.devnull, "w")):
+from keras.models import load_model
+from keras.backend import set_session
+import keras
 
 import tensorflow as tf
 
-tf.get_logger().setLevel("ERROR")
+#tf.get_logger().setLevel("WARNING")
 tf.config.run_functions_eagerly(False)
 warnings.filterwarnings("ignore")
 
