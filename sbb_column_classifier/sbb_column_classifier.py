@@ -216,6 +216,7 @@ class sbb_column_classifier:
 
         return cropped_page
 
+
     def crop_pages_batchwise(self, image_files):
         """Crop pages, batch for batch"""
         batch = []
@@ -249,11 +250,12 @@ class sbb_column_classifier:
         for cropped_pages_batch in self.crop_pages_batchwise(image_files):
             batch = []
             # TODO This doesn't run parallelized
-            for cropped_page, image_file in cropped_pages_batch:
-                # TODO ... just to resize it down again
-                cropped_page = cropped_page / 255.0
-                cropped_page = cv2.resize(cropped_page, (448, 448), interpolation=cv2.INTER_NEAREST)  # XXX hardcoded shape
-                batch.append((cropped_page, image_file))
+            with timing("Resizing down again for the 2nd nnet", logger=self.logger):
+                for cropped_page, image_file in cropped_pages_batch:
+                    # TODO ... just to resize it down again
+                    cropped_page = cropped_page / 255.0
+                    cropped_page = cv2.resize(cropped_page, (448, 448), interpolation=cv2.INTER_NEAREST)  # XXX hardcoded shape
+                    batch.append((cropped_page, image_file))
 
             X = np.stack((x for x, _ in batch), axis=0)
             X = tf.convert_to_tensor(X, dtype=tf.float64)
